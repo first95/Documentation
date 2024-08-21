@@ -73,6 +73,13 @@ Note the spacing around curly-braces and parenthases, as well as indentation for
 
 Use blank lines between sections of code that do distinctly different things.
 
+## Units
+Use SI/metric units for everything, if at all possible.  Convert input to metric immediately and convert back to display units immediately before outputting them.
+
+Any angular values (angles, angular velocity, angular acceleration) should be encapsulated in a ``Rotation2d`` object to prevent degree/radian/rotation confusion.
+
+Utilize the built-in WPILib geometry classes, such as ``Pose2d`` and ``Translation2d`` whenever it makes sense— they have a lot of built-in methods that probably do exactly what you need if you string them together right.
+
 ## Structures
 ### Subsystems
 Subsystems are half of the comand-based paradigm, but defining where to split that half can be difficult.  The subsystem should provide a hardware interface for Commands to use; think of it as converting direct motor and sensor controls to psuedocode a human might use to talk about what the robot should do.  For example, and ``Arm`` subsystem would have a ``setPosition()`` method that takes an angle input.  The subsystem handles all the control loops and unit conversions, so the Command simply asks the arm to go to a particular position and it does.  The subsytem should also ensure that its methods for interacting with the hardware are "safe"— if there are programmatic limits or interlocks required to prevent the possibility of the robot breaking itself, they should be present at the subsystem level.
@@ -87,11 +94,163 @@ Autonomous routines are built using commands effectively as a domain-specific la
 #### Control input
 Simple commands can be bound to buttons using triggers, running the command when the button is pressed.  This is described and reccomended by the WPILib docs.  However, complex commands that must run continuously, such as feeding joystick input to the drivebase, need to be fed input from the controllers as parameters in the command definition.  These must be ``Suppliers``— functions that return the current value of the input whenever polled, not the values themselves, as they wuld only provide whatever value it happened to be when the command was created on robot boot.  **IMPORTANT**: When creating ``Suppliers`` to pass button or axis values to a command, be sure to poll the button like this: ``Joystick.getHID().getXButton()``, **not** like this: ``Joystick.x().getAsBoolean()``.  There is a known bug with the latter version that causes extreme loop overruns which can lead to unpredictable and dangerous robot behavior.  Even if this bug is fixed, the latter is still bad practice based on how each method works.
 #### Finite State Machines (FSMs)
-A Finite State Machine is a logical construction that takes a set of inputs and produces a set of outputs,and whose behavior is entirely determined by its current inputs and its current internal state.  They are very often useful for programming robots, most frequently for automating the gamepiece-handling pathway through a robot (ex. 2020 Spangler, 2022 Lamarr, 2024 Judith).  Unfortunately, programming them is also and excellent way to produce hard-to-trace bugs if the state changes are not managed carefully, and so they should follow this form, for clarity, clenliness, and functionality:
+A Finite State Machine is a logical construction that takes a set of inputs and produces a set of outputs,and whose behavior is entirely determined by its current inputs and its current internal state.  They are very often useful for programming robots, most frequently for automating the gamepiece-handling pathway through a robot (ex. 2020 Spangler, 2022 Lamarr, 2024 Judith).  Unfortunately, programming them is also and excellent way to produce hard-to-trace bugs if the state changes are not managed carefully, and so they should follow this form, for clarity, cleanliness, and functionality:
 ```
+/** A simplified rewrite of Spangler's indexing logic. */
 class ExampleFSM {
+    private final PowerCellSubsystem ballPath;
+    private final DoubleSupplier intakeSpeedAxis;
+    private final BooleanSupplier shooterButtonSupplier
+
     private enum State {
-        
+        IDLE, INDEX_A, INDEX_B, SPOOLING, SHOOTING
+    }
+
+    // Stores the current state
+    private State currentState;
+
+    // Create variables for all the inputs to the statemachine
+    private double commandedIntakeSpeed;
+    private boolean sensorA, sensorB, 
+        shooterSensor, shooterButton, shooterAtSpeed;
+    
+    public ExampleFSM(
+        PowerCellSubsystem ballPath,
+        DoubleSupplier intakeSpeedAxis,
+        BooleanSupplier shooterButtonSupplier
+    ) {
+        this.ballPath = ballPath;
+        this.intakeSpeedAxis = intakeSpeedAxis;
+        this.shooterButtonSupplier = shooterButtonSupplier;
+
+        addRequirements(ballPath)
+    }
+
+    @Override
+    public void initialize() {
+        currentState = State.IDLE;
+    }
+
+    @Override
+    public void execute() {
+        // Read all the inputs once, at the beginning of the loop,
+        // except for any inputs that depend on the current set output,
+        // such as whether the shooter is at the target speed yet.
+        commandedIntakeSpeed = intakeSpeedAxis.getAsDouble();
+        sensorA = ballPath.getSensorA();
+        sensorB = ballPath.getSensorB();
+        shooterSensor = ballPath.getShooterSensor();
+        shooterButton = shooterButtonSupplier.getAsBoolean();
+
+        // Use a switch statement to set outputs and change states
+        switch (currentState) {
+            case IDLE:
+                // Set the desired outputs for this state
+                ballPath.runIntake(commandedIntakeSpeed);
+                ballPath.runSingulator(commandedIntakeSpeed);
+                ballPath.runIndexer(0);
+                ballPath.runShooter(ShooterConstants.IDLE_SPEED);
+
+                // Read output-dependent inputs— this is very important
+                // to do *after* setting the outputs for this state.
+                shooterAtSpeed = ballPath.shooterAtSpeed();
+
+                // Determine if we need to change states
+                // Note that the first case listed is highest
+                // priority in an if-else if ladder.
+                if (shooterButton) {
+                    currentState = State.SPOOLING;
+                } else if (sensorA) {
+                    currentState = State.INDEX_A;
+                }
+            // REMEMBER THE BREAK STATEMENT
+            break;
+
+            case INDEX_A:
+                ballPath.runIntake(commandedIntakeSpeed);
+                ballPath.runSingulator(commandedIntakeSpeed);
+                ballPath.runIndexer(IndexerConstants.INDEX_SPEED);
+                ballPath.runShooter(ShooterConstants.IDLE_SPEED);
+
+                shooterAtSpeed = ballPath.shooterAtSpeed();
+
+                if (shooterButton) {
+                    currentState = State.SPOOLING
+                } else if (shooterSensor) {
+                    currentState = State.IDLE;
+                } else if (!sensorA) {
+                    currentState = State.INDEX_B
+                }
+            break;
+
+            case INDEX_B:
+                ballPath.runIntake(commandedIntakeSpeed);
+                ballPath.runSingulator(commandedIntakeSpeed);
+                ballPath.runIndexer(IndexerConstants.INDEX_SPEED);
+                ballPath.runShooter(ShooterConstants.IDLE_SPEED);
+
+                shooterAtSpeed = ballPath.shooterAtSpeed();
+
+                if (shooterButton) {
+                    currentState = State.SPOOLING
+                } else if (sensorB || shooterSensor) {
+                    currentState = State.IDLE
+                }
+            break;
+
+            case SPOOLING:
+                ballPath.runIntake(commandedIntakeSpeed);
+                ballPath.runSingulator(commandedIntakeSpeed);
+                ballPath.runIndexer(0);
+                ballPath.runShooter(ShooterConstants.SHOOTING_SPEED);
+
+                shooterAtSpeed = ballPath.shooterAtSpeed();
+
+                if (!shooterButton) {
+                    currentState = State.IDLE
+                } else if (shooterAtSpeed) {
+                    currentState = State.SHOOTING
+                }
+            break;
+
+            case SHOOTING:
+                ballPath.runIntake(commandedIntakeSpeed);
+                ballPath.runSingulator(commandedIntakeSpeed);
+                ballPath.runIndexer(IntakeConstants.SHOOTING_SPEED);
+                ballPath.runShooter(ShooterConstants.SHOOTING_SPEED);
+
+                shooterAtSpeed = ballPath.shooterAtSpeed();
+
+                if (!shooterButton) {
+                    currentState = State.IDLE
+                }
+            break;
+        }
+    }
+
+    @Override
+    public void end(boolean interrupted) {
+    }
+
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
+}
+```
+
+### Constants.java
+Put all the numbers **here**.  Everything should be declared as ``public static final [type]`` if possible, and there should be no code here other than declarations and at most constructing lists/dictionaries programmatically.  Use subclasses for individual subsytems, or even components of a subsytem if it's complex enough, like this:
+```
+public final class Constants {
+    // general, non-component specific stuff
+
+    // like gravity
+
+    public static final class Drivebase {
+        // constants for the drivebase
+
+        // like wheel diameter and CAN IDs
     }
 }
 ```
