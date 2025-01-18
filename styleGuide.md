@@ -1,5 +1,25 @@
 # Team 95 Grasshoppers Style Guide
 This document will not teach you how to program a robot.  Further, this guide assumes you already understand the Command-based paradigm; if you do not, read the [WPILib documentation](https://docs.wpilib.org/en/stable/docs/software/commandbased/index.html) and explore past robot projects before proceeding. This document will explain how you *should* program a robot such that the code is easily readable and is visually consistent throughout.  In short, this is how to make the code look pretty.  In addition, this guide will contain some notes about best practices.
+## Table of Contents
+- [Team 95 Grasshoppers Style Guide](#team-95-grasshoppers-style-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Terms used within this guide](#terms-used-within-this-guide)
+  - [General](#general)
+    - [Variables and Methods (functions)](#variables-and-methods-functions)
+    - [Constants](#constants)
+    - [Classes](#classes)
+    - [Magic numbers](#magic-numbers)
+    - [Comments](#comments)
+    - [Whitespace](#whitespace)
+  - [Units](#units)
+  - [Structures](#structures)
+    - [Subsystems](#subsystems)
+    - [Commands](#commands)
+      - [Autonoumous mode](#autonoumous-mode)
+      - [Control input](#control-input)
+      - [Finite State Machines (FSMs)](#finite-state-machines-fsms)
+    - [Constants.java](#constantsjava)
+  
 ## Terms used within this guide
 - lowercase: self-explanitory
 - UPPER_CASE or ALL_CAPS: all upper case, with words separated by underscores
@@ -241,7 +261,7 @@ class ExampleFSM {
 
 ### Constants.java
 Put all the numbers **here**.  Everything should be declared as ``public static final [type]`` if possible, and there should be no code here other than declarations and at most constructing lists/dictionaries programmatically.  Use subclasses for individual subsytems, or even components of a subsytem if it's complex enough, like this:
-```java
+```java 
 public final class Constants {
     // general, non-component specific stuff
 
