@@ -25,12 +25,12 @@ For example, a comparison that some value is positive can use ``variable > 0``, 
 
 ### Comments
 **Use them**.  Though during build/competition season they are a lesser priority to actual functional code, if programming resources/time is limited.  For single line comments, differentiate between permanent documentation comments and temporary commented-out code usind the presence of a space after the comment character:
-```
+```java
 // This is a comment for documentation
 //System.out.println(debugStuff)
 ```
 Use Javadoc comments to explain what classes and methods do:
-```
+```java
 public class ExampleClass {
     // variable declarations and stuff
 
@@ -47,7 +47,7 @@ public class ExampleClass {
 ### Whitespace
 Operators should be surrounded with spaces for clarity: ``1 + 1`` is good, ``1+1`` is not.
 If a line becomes too long to comfortably fit on the screen, split it across multiple lines, with all subsequent lines indented to show they are part of the first line.  If at all possible, make the spilt(s) in sensible places (e.g. between arguments of a function or operator):
-```
+```java
 Translation2d maxAccel = new Translation2d(
   calcMaxAccel(
     deltaV
@@ -58,7 +58,7 @@ Translation2d maxAccel = new Translation2d(
 In the above example, each argument of the Translation2d constructor is on its own line, and the single argument for ``calcMaxAccel`` is split across three lines on dots.
 
 If statements, loops, and function definitions share a similar format:
-```
+```java
 public int countSpecificNumber(int[] numList, int target) {
     int count = 0;
     for (number : numList) {
@@ -95,7 +95,7 @@ Autonomous routines are built using commands effectively as a domain-specific la
 Simple commands can be bound to buttons using triggers, running the command when the button is pressed.  This is described and reccomended by the WPILib docs.  However, complex commands that must run continuously, such as feeding joystick input to the drivebase, need to be fed input from the controllers as parameters in the command definition.  These must be ``Suppliers``— functions that return the current value of the input whenever polled, not the values themselves, as they wuld only provide whatever value it happened to be when the command was created on robot boot.  **IMPORTANT**: When creating ``Suppliers`` to pass button or axis values to a command, be sure to poll the button like this: ``Joystick.getHID().getXButton()``, **not** like this: ``Joystick.x().getAsBoolean()``.  There is a known bug with the latter version that causes extreme loop overruns which can lead to unpredictable and dangerous robot behavior.  Even if this bug is fixed, the latter is still bad practice based on how each method works.
 #### Finite State Machines (FSMs)
 A Finite State Machine is a logical construction that takes a set of inputs and produces a set of outputs,and whose behavior is entirely determined by its current inputs and its current internal state.  They are very often useful for programming robots, most frequently for automating the gamepiece-handling pathway through a robot (ex. 2020 Spangler, 2022 Lamarr, 2024 Judith).  Unfortunately, programming them is also and excellent way to produce hard-to-trace bugs if the state changes are not managed carefully, and so they should follow this form, for clarity, cleanliness, and functionality:
-```
+```java
 /** A simplified rewrite of Spangler's indexing logic. */
 class ExampleFSM {
     private final PowerCellSubsystem ballPath;
@@ -241,7 +241,7 @@ class ExampleFSM {
 
 ### Constants.java
 Put all the numbers **here**.  Everything should be declared as ``public static final [type]`` if possible, and there should be no code here other than declarations and at most constructing lists/dictionaries programmatically.  Use subclasses for individual subsytems, or even components of a subsytem if it's complex enough, like this:
-```
+```java
 public final class Constants {
     // general, non-component specific stuff
 
